@@ -1,10 +1,12 @@
 {
 	"folders": [
 		{
-			"path": "docker/docs-ai"
+			"name": "llm-docs",
+			"path": "."
 		},
 		{
-			"path": "."
+			"name": "docs-ai",
+			"path": "docker/docs-ai"
 		}
 	],
 	"settings": {}

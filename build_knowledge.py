@@ -1,21 +1,20 @@
 import os
 import lancedb
-from sentence_transformers import SentenceTransformer
-import pandas as pd
+import voyageai
+import time
 
 # CONFIGURATION
-DOCS_DIR = "./docs-ai"  # Folder containing your .md files
-DB_PATH = "./docs-ai/my_knowledge_db"  # Where LanceDB will save data
-MODEL_NAME = "all-MiniLM-L6-v2"  # Small, fast, local embedding model
+DOCS_DIR = "./docs-ai"
+DB_PATH = "./docs-ai/my_knowledge_db"
+EMBEDDING_MODEL = "voyage-law-3"  # Best for legal documents
 
 
 def load_and_chunk_md_files(directory):
     """
-    Reads MD files and splits them by Level 2 headers (##).
-    Adjust regex/splitting logic if your docs use different headers.
+    Simple chunker. For 'voyage-context-3', you would need to pass
+    nested lists (docs -> chunks), but for 'voyage-law-3', flat chunks work great.
     """
     chunks = []
-
     for root, _, files in os.walk(directory):
         for file in files:
             if file.endswith(".md"):
@@ -23,15 +22,10 @@ def load_and_chunk_md_files(directory):
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
 
-                # Simple strategy: Split by "## " to get sections
-                # This keeps the header context with the body text
+                # Split by headers
                 sections = content.split("\n## ")
-
                 for i, section in enumerate(sections):
-                    # Add back the "## " unless it's the very first preamble
                     text = ("## " + section) if i > 0 else section
-
-                    # Clean up empty sections
                     if text.strip():
                         chunks.append(
                             {"filename": file, "text": text.strip(), "path": file_path}
@@ -40,35 +34,40 @@ def load_and_chunk_md_files(directory):
 
 
 def main():
-    print("1. Loading embedding model...")
-    model = SentenceTransformer(MODEL_NAME)
-
-    print(f"2. Scanning files in {DOCS_DIR}...")
+    print(f"1. Scanning {DOCS_DIR}...")
     data = load_and_chunk_md_files(DOCS_DIR)
-    print(f"   Found {len(data)} chunks of documentation.")
 
     if not data:
-        print("   No data found! Check your directory path.")
+        print("   No data found.")
         return
 
-    print("3. Generating embeddings (vectors)...")
-    # Generate vectors for all text chunks
-    vectors = model.encode([item["text"] for item in data])
+    print(f"   Found {len(data)} chunks.")
 
-    # Combine data with vectors into a list of dicts for LanceDB
+    print(f"2. Generating Embeddings ({EMBEDDING_MODEL})...")
+    vo_client = voyageai.Client()
+
+    # Embed in batches to be safe
+    texts = [d["text"] for d in data]
+    batch_size = 100
+    all_vectors = []
+
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i : i + batch_size]
+        # input_type="document" is CRITICAL for Voyage accuracy
+        result = vo_client.embed(batch, model=EMBEDDING_MODEL, input_type="document")
+        all_vectors.extend(result.embeddings)
+        time.sleep(0.2)
+
+    # Attach vectors
     table_data = []
     for i, item in enumerate(data):
-        item["vector"] = vectors[i]
+        item["vector"] = all_vectors[i]
         table_data.append(item)
 
-    print(f"4. Saving to LanceDB at {DB_PATH}...")
+    print(f"3. Saving to LanceDB...")
     db = lancedb.connect(DB_PATH)
-
-    # Overwrite the table if it exists to keep it fresh
-    tbl = db.create_table("dev_docs", data=table_data, mode="overwrite")
-
-    print("Success! Database built.")
-    print("You can now query this DB for context.")
+    db.create_table("dev_docs", data=table_data, mode="overwrite")
+    print("✅ Knowledge Base Built.")
 
 
 if __name__ == "__main__":
