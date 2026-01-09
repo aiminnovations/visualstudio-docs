@@ -1,0 +1,4 @@
+voyageai==0.2.4
+lancedb==0.26.1
+pypdf==6.5.0
+python-dotenv==1.2.1

@@ -12,8 +12,8 @@ load_dotenv()
 DEFAULT_INPUT_DIR = (
     "E:\\My Drive\\sean@group9\\6_LAW - RESEARCH"  # Default source if none provided
 )
-DEFAULT_OUTPUT_DIR = "./llm-docs/docs-ai"  # Default target for the DB
-EMBEDDING_MODEL = "voyage-law-3"
+DEFAULT_OUTPUT_DIR = "./docs-ai"  # Default target for the DB
+EMBEDDING_MODEL = "voyage-law-2"
 
 
 def load_and_chunk_md_files(directory):
