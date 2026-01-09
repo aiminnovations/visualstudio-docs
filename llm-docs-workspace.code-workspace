@@ -9,5 +9,12 @@
 			"path": "docker/docs-ai"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"chat.tools.terminal.autoApprove": {
+			"/^G:/Code/llm-docs/\\.venv/Scripts/python\\.exe -m pip install voyageai lancedb pypdf python-dotenv anthropic$/": {
+				"approve": true,
+				"matchCommandLine": true
+			}
+		}
+	}
 }
