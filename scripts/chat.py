@@ -4,7 +4,7 @@ import anthropic
 import sys
 
 # CONFIGURATION
-DB_PATH = "./docs-aimy_knowledge_db"
+DB_PATH = "./docs-ai/my_knowledge_db"
 EMBEDDING_MODEL = "voyage-law-3"
 RERANK_MODEL = "rerank-2"  # Optimized for code/technical accuracy
 CLAUDE_MODEL = "claude-sonnet-4-5"

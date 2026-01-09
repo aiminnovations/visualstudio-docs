@@ -94,7 +94,7 @@ def load_and_chunk_files(directory):
     return all_chunks
 
 
-def embed_batch_safe(client, batch_texts, model, retry_count=0):
+def embed_batch_safe(client, batch_texts, model, retry_count=0, max_retries=5):
     """
     Embeds a batch of text with robust rate limit and error handling.
     """
@@ -104,14 +104,25 @@ def embed_batch_safe(client, batch_texts, model, retry_count=0):
         error_msg = str(e).lower()
         # Handle Rate Limits and Transient Server Errors
         if any(
-            x in error_msg for x in ["rate limit", "429", "500", "502", "503", "timout"]
+            x in error_msg
+            for x in ["rate limit", "429", "500", "502", "503", "timeout"]
         ):
+            if retry_count >= max_retries:
+                print(
+                    f"\n   ❌ Max retries ({max_retries}) exceeded. Giving up on this batch."
+                )
+                raise e
+
             wait_time = min(
                 300, 30 * (2**retry_count)
             )  # Exponential backoff capped at 5 mins
-            print(f"\n   ⚠️  API Issue ({e}). Retrying in {wait_time}s...")
+            print(
+                f"\n   ⚠️  API Issue ({e}). Retrying in {wait_time}s... (Attempt {retry_count + 1}/{max_retries + 1})"
+            )
             time.sleep(wait_time)
-            return embed_batch_safe(client, batch_texts, model, retry_count + 1)
+            return embed_batch_safe(
+                client, batch_texts, model, retry_count + 1, max_retries
+            )
         else:
             # For other errors, log and re-raise (or could return Empty to skip)
             print(f"\n   ❌ Critical Error: {e}")

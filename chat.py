@@ -4,12 +4,48 @@ load_dotenv()  # This loads the variables from the .env file
 import lancedb
 from sentence_transformers import SentenceTransformer
 import sys
+import pandas as pd
 
 
 # CONFIGURATION
 DB_PATH = "./docs-ai/my_knowledge_db"
 MODEL_NAME = "all-MiniLM-L6-v2"
 MAX_CONTEXT_CHUNKS = 3  # How many snippets to retrieve
+
+
+def rerank_documents(query, documents, model):
+    """
+    Simple reranking function using sentence similarity
+    (Placeholder for the missing function)
+    """
+    # For now, just return the documents as-is
+    # In a full implementation, this would use a reranking model
+    return documents[:MAX_CONTEXT_CHUNKS]
+
+
+def format_prompt(query, results):
+    """
+    Format the results into a prompt for Claude/ChatGPT
+    """
+    context_text = ""
+    for _, row in results.iterrows():
+        context_text += f"---\\nSOURCE: {row['filename']}\\nCONTENT:\\n{row['text']}\\n"
+
+    prompt = f"""Based on the following legal documents, please answer this question: {query}
+
+### LEGAL CONTEXT:
+{context_text}
+
+### INSTRUCTIONS:
+- Use ONLY the provided context to answer
+- Cite specific sources when possible
+- If the answer isn't in the context, state that clearly
+- Provide legal reasoning for your conclusions
+
+### QUESTION:
+{query}"""
+
+    return prompt
 
 
 def get_search_results(query, tbl, model):
@@ -78,13 +114,12 @@ def main():
         db = lancedb.connect(DB_PATH)
         tbl = db.open_table("dev_docs")
 
-        # Initialize Clients (They will now auto-detect keys from .env)
-        vo_client = voyageai.Client()
-        ant_client = anthropic.Anthropic()
+        # Load the sentence transformer model
+        model = SentenceTransformer(MODEL_NAME)
 
     except Exception as e:
         print(f"Startup Error: {e}")
-        print("Check your .env file and ensure variable names are correct.")
+        print("Check your .env file and database path.")
         return
 
     print("\n✅ Ready! Type your question below (or 'exit' to quit).")
